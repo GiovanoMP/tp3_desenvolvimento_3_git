@@ -1,23 +1,30 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import requests
+from io import BytesIO
 
-def load_data(file_path, progress_bar):
-    # Passo 1: Ler o arquivo Excel
-    df = pd.read_excel(file_path, header=11)
+# Função para carregar dados de um arquivo online
+def load_data_from_url(url, progress_bar):
+    # Passo 1: Baixar o arquivo Excel
+    response = requests.get(url)
+    file_data = BytesIO(response.content)
+    
+    # Passo 2: Ler o arquivo Excel
+    df = pd.read_excel(file_data, header=11)
     progress_bar.progress(20)
 
-    # Passo 2: Definir os nomes das colunas
+    # Passo 3: Definir os nomes das colunas
     df.columns = ['Período', 'Negócios', 'Convenção', 'Lazer', 'Outros']
     progress_bar.progress(30)
 
-    # Passo 3: Remover linhas com valores NA e linhas indesejadas
+    # Passo 4: Remover linhas com valores NA e linhas indesejadas
     df.dropna(inplace=True)
     df = df[~df['Período'].str.contains('Média')]
     df.reset_index(drop=True, inplace=True)
     progress_bar.progress(40)
 
-    # Passo 4: Converter colunas para numérico
+    # Passo 5: Converter colunas para numérico
     numeric_columns = ['Negócios', 'Convenção', 'Lazer', 'Outros']
     for col in numeric_columns:
         df[col] = df[col].astype(str)
@@ -26,12 +33,12 @@ def load_data(file_path, progress_bar):
         df[col] = pd.to_numeric(df[col], errors='coerce')
     progress_bar.progress(60)
 
-    # Passo 5: Remover linhas com valores NaN nas colunas numéricas
+    # Passo 6: Remover linhas com valores NaN nas colunas numéricas
     df.dropna(subset=numeric_columns, inplace=True)
     df.reset_index(drop=True, inplace=True)
     progress_bar.progress(70)
 
-    # Passo 6: Adicionar a coluna 'Ano'
+    # Passo 7: Adicionar a coluna 'Ano'
     anos = [1997, 1998, 1999, 2000, 2001, 2002]
     bloco_tamanho = 12
     df['Ano'] = None
@@ -41,7 +48,7 @@ def load_data(file_path, progress_bar):
         df.loc[inicio:fim - 1, 'Ano'] = ano
     progress_bar.progress(90)
 
-    # Passo 7: Adicionar a coluna de Meses (de janeiro a dezembro)
+    # Passo 8: Adicionar a coluna de Meses (de janeiro a dezembro)
     df['Mês'] = df.groupby('Ano').cumcount() + 1
     df['Mês'] = df['Mês'].replace({
         1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
@@ -55,14 +62,15 @@ def load_data(file_path, progress_bar):
 
     return df
 
-# Caminho do arquivo de dados
-file_path = r'C:\infnet_ultimo_semestre\TP3_desenvolvimento_4\data\469.xls'
+# URLs para os dados e a imagem
+data_url = 'https://github.com/GiovanoMP/tp3_desenvolvimento_3_git/raw/main/data/469.xls'
+image_url = 'https://github.com/GiovanoMP/tp3_desenvolvimento_3_git/raw/main/imagem/imagem_rio.jpeg'
 
 # Carregar os dados com barra de progresso
 if 'df' not in st.session_state:
     st.write("Carregando dados...")
     progress_bar = st.progress(0)
-    df = load_data(file_path, progress_bar)
+    df = load_data_from_url(data_url, progress_bar)
     st.session_state['df'] = df
     st.success('Dados carregados com sucesso!')
 else:
@@ -101,7 +109,9 @@ with tab_intro:
     """)
     
     # Exibir a imagem no meio da página
-    st.image(r'C:\Users\giova\OneDrive\Documentos\Imagens para projetos\imagem_rio.jpeg', caption="Logo", use_column_width=True)
+    image_response = requests.get(image_url)
+    image_data = BytesIO(image_response.content)
+    st.image(image_data, caption="Logo", use_column_width=True)
 
 # Aba "Gráfico por Ano"
 with tab1:
@@ -267,3 +277,4 @@ if 'df' in st.session_state:
     )
 else:
     st.sidebar.write("Dados não disponíveis para download.")
+
